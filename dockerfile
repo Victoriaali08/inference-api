@@ -19,13 +19,13 @@ RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/libr
 COPY main.py /inference-api
 COPY forfile.py /inference-api
 COPY model /inference-api/model
-#COPY requirements.txt /inference-api
-#RUN pip install -r requirements.txt
+COPY requirements.txt /inference-api
+RUN pip install -r requirements.txt
 
 EXPOSE 4500
 CMD ["python", "main.py"]
 #CMD ["python", "forfile.py"]
 
 #docker build -t tts .
-#docker run --privileged --cpus=1.0 -p 4500:4500 -d tts
+#docker run -p 4500:4500 -d tts
 #curl -X POST http://localhost:4500/synthesize -H "Content-Type: application/json" -d '{"voice": "a", "input": "hello world"}' --output output.wav
