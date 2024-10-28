@@ -1,4 +1,5 @@
 from flask import Flask, request, send_file, jsonify
+import logging
 import numpy as np
 from scipy.io.wavfile import write
 from io import BytesIO
@@ -15,6 +16,7 @@ from TTS.utils.synthesizer import Synthesizer
 
 app = Flask(__name__)
 g2p = g2pk.G2p()
+symbols = None
 
 
 def normalize_text(text):
@@ -174,50 +176,44 @@ def normalize_multiline_text(long_text):
     return [text for text in normalized_texts if len(text) > 0]
 
 
-# Synthesizer 객체 초기화
-synthesizer = Synthesizer(
-    "/inference-api/model/glowtts-js/best_model.pth.tar",
-    "/inference-api/model/glowtts-js/config.json",
-    None,
-    "/inference-api/model/hifigan-js/best_model.pth.tar",
-    "/inference-api/model/hifigan-js/config.json",
-    None,
-    None,
-    False,
-)
-print(f"Synthesizer initialized : {synthesizer}")
-
-symbols = synthesizer.tts_config.characters.characters
-
-
 @app.route("/synthesize", methods=["POST"])
 def synthesize():
+    global symbols
+    synthesizer = Synthesizer(
+        "/inference-api/model/glowtts-js/best_model.pth.tar",
+        "/inference-api/model/glowtts-js/config.json",
+        None,
+        "/inference-api/model/hifigan-js/best_model.pth.tar",
+        "/inference-api/model/hifigan-js/config.json",
+        None,
+        None,
+        False,
+    )
+    app.logger.info(f"\n\n\t\t\tSynthesizer initialized : {synthesizer}")
+
+    symbols = synthesizer.tts_config.characters.characters
+
     try:
-        print("synthesize start")
         data = request.get_json()
-        print(f"Received data: {data}")
+        app.logger.info(f"\t\t\tReceived data: {data}")
         if not data or "voice" not in data or "input" not in data:
+            app.logger.info(f"\t\t\twrong data")
             return jsonify({"error": "Invalid input"}), 400
-        # 나머지 코드...
-        texts = data["input"]
-        normalized_texts = normalize_multiline_text(texts)
 
-        # WAV 파일 생성
-        wavs = []
-        for text in normalized_texts:
-            wav = synthesizer.tts(text, None, None)
-            wavs.extend(wav)
+        app.logger.info(f"\t\t\tsynthesizing start")
+        text = data["input"]
+        normalized_text = normalize_text(text)
+        app.logger.info(f"\t\t\tnormalized text: {normalized_text}")
 
-        # Wav 파일로 변환
-        wav_np = np.array(wavs)
+        wav = synthesizer.tts(normalized_text, None, None)
+        app.logger.info(f"\t\t\twav generated")
+        wav_np = np.array(wav)
         wav_int16 = (wav_np * 32767).astype(np.int16)
 
-        # BytesIO에 저장해 파일로 변환
         wav_io = BytesIO()
         write(wav_io, 22050, wav_int16)
         wav_io.seek(0)
-
-        # wav 파일 반환
+        app.logger.info(f"\t\t\tReturning wav")
         return send_file(
             wav_io,
             mimetype="audio/wav",
@@ -225,10 +221,26 @@ def synthesize():
             download_name="output.wav",
         )
     except Exception as e:
-        print(f"Error: {e}")
+        app.logger.error(f"Error during synthesis: {e}", exc_info=True)
+        return jsonify({"error": "An error occurred"}), 500
+
+
+@app.route("/test", methods=["POST"])
+def test():
+    try:
+        app.logger.info("\t\t\ttest start")
+        raw_data = request.data.decode("utf-8")
+        app.logger.info(f"\t\t\tRaw data received: {raw_data}")
+        data = request.get_json()
+        app.logger.info(f"\t\t\tReceived data: {data}")
+        if not data or "voice" not in data or "input" not in data:
+            return jsonify({"error": "Invalid input"}), 400
+        return data
+    except Exception as e:
+        app.logger.error(f"Error: {e}", exc_info=True)
         return jsonify({"error": "An error occurred"}), 500
 
 
 if __name__ == "__main__":
-    print("Server started")
+    print("\n\t\t\tServer started")
     app.run(host="0.0.0.0", port=4500, debug=True)
