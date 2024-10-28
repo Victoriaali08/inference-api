@@ -1,0 +1,11 @@
+flask
+scipy
+librosa==0.8.0
+pysbd
+coqpit
+unidecode
+pypinyin
+konlpy
+jamo
+nltk
+python-mecab-ko
