@@ -1,6 +1,7 @@
+# Usar Python 3.10 como base
 FROM python:3.10-slim
 
-# Instalar paquetes del sistema necesarios
+# Instalar dependencias del sistema necesarias para TTS y procesamiento de audio
 RUN apt-get update && apt-get install -y git ffmpeg build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -10,7 +11,7 @@ RUN pip install --upgrade pip
 # Establecer el directorio de trabajo
 WORKDIR /inference-api
 
-# Clonar repositorios necesarios
+# Clonar los repositorios necesarios
 RUN git clone --depth 1 https://github.com/sce-tts/TTS.git -b sce-tts
 RUN git clone --depth 1 https://github.com/sce-tts/g2pK.git
 
@@ -18,9 +19,12 @@ RUN git clone --depth 1 https://github.com/sce-tts/g2pK.git
 RUN sed -i 's/numpy==1.18.5/numpy==1.26.4/g' TTS/requirements.txt
 RUN sed -i 's/numba==0.52/numba==0.60/g' TTS/requirements.txt
 
-# Instalar dependencias de TTS y otras necesarias
+# Instalar dependencias de TTS y otros paquetes necesarios
 RUN pip install --no-cache-dir -r TTS/requirements.txt
 RUN pip install --no-cache-dir konlpy jamo nltk python-mecab-ko g2pk flask gunicorn
+
+# Instalar NLTK y descargar `cmudict` en una carpeta con permisos de escritura
+RUN python -m nltk.downloader -d /usr/local/share/nltk_data cmudict
 
 # Ajuste para evitar errores de `np.complex` en `librosa`
 RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/librosa/core/constantq.py || true
