@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir -r TTS/requirements.txt
 RUN pip install --no-cache-dir konlpy jamo nltk python-mecab-ko g2pk flask gunicorn
 
 # Instalar NLTK y descargar `cmudict` en una carpeta con permisos de escritura
-RUN python -m nltk.downloader -d /usr/local/share/nltk_data cmudict
+RUN mkdir -p /usr/share/nltk_data/corpora \
+    && python -m nltk.downloader -d /usr/share/nltk_data cmudict
 
 # Ajuste para evitar errores de `np.complex` en `librosa`
 RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/librosa/core/constantq.py || true
@@ -33,6 +34,9 @@ RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/libr
 COPY main.py /inference-api
 COPY forfile.py /inference-api
 COPY model /inference-api/model
+
+# Establecer variable de entorno para que NLTK busque en la ruta correcta
+ENV NLTK_DATA="/usr/share/nltk_data"
 
 # Exponer el puerto 4500
 EXPOSE 4500
