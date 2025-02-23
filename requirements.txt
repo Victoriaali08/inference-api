@@ -9,3 +9,5 @@ konlpy
 jamo
 nltk
 python-mecab-ko
+g2pk 
+gunicorn
