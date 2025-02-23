@@ -1,37 +1,42 @@
 FROM python:3.10-slim
 
+# Instalar paquetes del sistema necesarios
 RUN apt-get update && apt-get install -y git ffmpeg build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Actualizar pip
 RUN pip install --upgrade pip
 
+# Establecer el directorio de trabajo
 WORKDIR /inference-api
 
+# Clonar repositorios necesarios
 RUN git clone --depth 1 https://github.com/sce-tts/TTS.git -b sce-tts
-RUN sed -i 's/numpy==1.18.5/numpy==1.26.4/g' TTS/requirements.txt
-RUN sed -i 's/numba==0.52/numba==0.60/g' TTS/requirements.txt
 RUN git clone --depth 1 https://github.com/sce-tts/g2pK.git
 
-RUN pip install --no-cache-dir -r TTS/requirements.txt
-RUN pip install --no-cache-dir konlpy jamo nltk python-mecab-ko
-RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/librosa/core/constantq.py
+# Ajustar dependencias en TTS para compatibilidad con numpy y numba
+RUN sed -i 's/numpy==1.18.5/numpy==1.26.4/g' TTS/requirements.txt
+RUN sed -i 's/numba==0.52/numba==0.60/g' TTS/requirements.txt
 
+# Instalar dependencias de TTS y otras necesarias
+RUN pip install --no-cache-dir -r TTS/requirements.txt
+RUN pip install --no-cache-dir konlpy jamo nltk python-mecab-ko g2pk flask gunicorn
+
+# Ajuste para evitar errores de `np.complex` en `librosa`
+RUN sed -i 's/np.complex/complex/g' /usr/local/lib/python3.10/site-packages/librosa/core/constantq.py || true
+
+# Copiar archivos del proyecto
 COPY main.py /inference-api
 COPY forfile.py /inference-api
 COPY model /inference-api/model
-#COPY requirements.txt /inference-api
-#RUN pip install -r requirements.txt
 
+# Exponer el puerto 4500
 EXPOSE 4500
+
+# Comando para ejecutar la aplicación
 CMD ["python", "main.py"]
 
-#docker build -t tts .
-#docker run -p 4500:4500 -d tts
-#curl -X POST http://localhost:4500/synthesize -H "Content-Type: application/json" -d '{"voice": "a", "input": "hello world"}' --output output.wav
-#Invoke-WebRequest -Uri http://localhost:4500/synthesize -Method Post -Headers @{ "Content-Type" = "application/json" } -Body '{"voice": "a", "input": "hello world"}' -OutFile "output.wav"
-#Invoke-RestMethod -Uri http://localhost:4500/synthesize -Method Post -Headers @{ "Content-Type" = "application/json; charset=utf-8" } -Body '{"voice": "a", "input": "안녕하세요"}' -OutFile "output.wav"
-
-
-
-#Invoke-RestMethod -Uri "http://localhost:4500/test" -Method Post -Headers @{ "Content-Type" = "application/json" } -Body (@{ voice = "a"; input = "hello world" } | ConvertTo-Json)
-#Invoke-RestMethod -Uri "http://localhost:4500/test" -Method Post -Headers @{ "Content-Type" = "application/json; charset=utf-8" } -Body (@{ voice = "a"; input = "안녕하세요" } | ConvertTo-Json)
+# Debugging y pruebas rápidas
+# docker build -t tts .
+# docker run -p 4500:4500 -d tts
+# curl -X POST http://localhost:4500/synthesize -H "Content-Type: application/json" -d '{"voice": "a", "input": "hello world"}' --output output.wav
